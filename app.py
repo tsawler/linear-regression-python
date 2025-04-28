@@ -4,7 +4,8 @@ Housing Price Linear Regression Analysis
 
 This script performs linear regression analysis on housing data,
 predicting prices based on square footage. It includes data validation,
-preprocessing, model training/testing, and visualization.
+preprocessing, model training/testing, visualization, and the ability to 
+predict the price of a new house given its square footage after training.
 
 What is Linear Regression?
 -------------------------
@@ -67,6 +68,7 @@ def parse_arguments():
     This function defines what command-line options the script accepts:
     - A file path for the input CSV data
     - An option to hide the plot (but still save it to a file)
+    - A square footage value to predict the price for after training.
     
     Command-line arguments let users customize the script's behavior without changing the code.
     """
@@ -83,6 +85,11 @@ def parse_arguments():
         '--no-plot', 
         action='store_true',  # This is a flag (doesn't take a value, just present or not)
         help='Do not display the plot (still saves to file)'
+    )
+    parser.add_argument(
+        '-predict', '--predict-sqft',
+        type=float,  # Expecting a numerical value for square footage
+        help='Predict the price for a house with the given square footage after training the model.'
     )
     return parser.parse_args()
 
@@ -263,6 +270,31 @@ def evaluate_model(model, X, y, scaler):
     
     return predictions, r_squared, rmse
 
+def predict_price(model, scaler, square_footage):
+    """
+    Predict the price for a given square footage using the trained model.
+    
+    Args:
+        model: Trained LinearRegression model.
+        scaler: Feature scaler used during training.
+        square_footage (float): The square footage of the house to predict the price for.
+        
+    Returns:
+        float: The predicted price in thousands of dollars.
+    """
+    # Reshape the input square footage to be a 2D array as required by scaler and model
+    sqft_array = np.array([[square_footage]])
+    
+    # Scale the input using the fitted scaler
+    sqft_scaled = scaler.transform(sqft_array)
+    
+    # Make the prediction
+    predicted_price = model.predict(sqft_scaled)
+    
+    # The prediction is returned as an array, take the first element
+    return predicted_price[0]
+
+
 def create_visualization(X_train, y_train, X_test, y_test, 
                         train_predictions, test_predictions, 
                         model, scaler, output_file, show_plot=True):
@@ -413,7 +445,7 @@ def print_results(X_train, y_train, X_test, y_test,
 
 def main():
     """
-    Main function to execute the analysis pipeline.
+    Main function to execute the analysis pipeline and optional prediction.
     
     This function coordinates the entire analysis process:
     1. Parse command-line arguments
@@ -422,6 +454,7 @@ def main():
     4. Train the model
     5. Evaluate the model
     6. Print results and visualize
+    7. If --predict-sqft flag is used, predict and print price for the given square footage.
     
     What is train/test splitting?
     ---------------------------
@@ -456,13 +489,14 @@ def main():
     # Train model
     # This learns the relationship between square footage and price
     model, scaler = train_model(X_train, y_train)
+    logger.info("Model training complete.")
     
     # Evaluate model on both training and test data
     # This tells us how well our model performs
     train_predictions, train_r2, train_rmse = evaluate_model(model, X_train, y_train, scaler)
     test_predictions, test_r2, test_rmse = evaluate_model(model, X_test, y_test, scaler)
     
-    logger.info(f"Model trained. R² (train): {train_r2:.4f}, R² (test): {test_r2:.4f}")
+    logger.info(f"Model evaluation complete. R² (train): {train_r2:.4f}, R² (test): {test_r2:.4f}")
     
     # Print results
     print_results(X_train, y_train, X_test, y_test, 
@@ -476,6 +510,15 @@ def main():
         CONFIG['output_image'],
         not args.no_plot  # Show plot unless --no-plot flag was used
     )
+
+    # Predict price for a new house if --predict-sqft flag is used
+    if args.predict_sqft is not None:
+        sqft_to_predict = args.predict_sqft
+        logger.info(f"Predicting price for a house with {sqft_to_predict} square footage...")
+        predicted_price = predict_price(model, scaler, sqft_to_predict)
+        print(f"\nPredicted price for a house with {sqft_to_predict} square footage: ${predicted_price:.2f} thousand")
+        print(f"This is equivalent to approximately ${predicted_price * 1000:.2f}")
+
 
 # Python's way of identifying if this script is being run directly
 # (versus being imported by another script)
