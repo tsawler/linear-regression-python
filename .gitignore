@@ -1,0 +1,5 @@
+.idea
+.Ds_Store
+__pycache__/*
+housing_regression.png
+venv/*
